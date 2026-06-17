@@ -50,6 +50,13 @@ data "google_storage_project_service_account" "gcs" {
   depends_on = [time_sleep.wait_for_apis]
 }
 
+# Artifact Registry's service agent propagates to IAM slower than the others;
+# grant it after a short settle to avoid "service account does not exist".
+resource "time_sleep" "wait_for_ar_identity" {
+  depends_on      = [google_project_service_identity.artifactregistry]
+  create_duration = "45s"
+}
+
 # ---------------------------------------------------------------------------
 # Grant each agent encrypt/decrypt on its dedicated key.
 # ---------------------------------------------------------------------------
@@ -69,6 +76,7 @@ resource "google_kms_crypto_key_iam_member" "artifacts" {
   crypto_key_id = google_kms_crypto_key.key["artifacts"].id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:${google_project_service_identity.artifactregistry.email}"
+  depends_on    = [time_sleep.wait_for_ar_identity]
 }
 
 resource "google_kms_crypto_key_iam_member" "storage" {
