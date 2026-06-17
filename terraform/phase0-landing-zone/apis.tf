@@ -28,8 +28,16 @@ locals {
 }
 
 resource "google_project_service" "enabled" {
-  for_each                    = toset(local.services)
-  service                     = each.value
-  disable_on_destroy          = false
-  disable_dependent_services  = false
+  for_each                   = toset(local.services)
+  service                    = each.value
+  disable_on_destroy         = false
+  disable_dependent_services = false
+}
+
+# Let freshly-enabled APIs propagate before any resource that depends on them
+# (SAs, service identities). Kills the "API has not been used / SERVICE_DISABLED"
+# race on a cold project.
+resource "time_sleep" "wait_for_apis" {
+  depends_on      = [google_project_service.enabled]
+  create_duration = "60s"
 }

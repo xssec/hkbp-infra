@@ -21,25 +21,58 @@ resource "google_kms_crypto_key" "key" {
   }
 }
 
-# Discover project number for service-agent member strings.
-data "google_project" "this" {
-  project_id = var.project_id
+# ---------------------------------------------------------------------------
+# Force-provision the Google-managed SERVICE AGENTS that will use each key.
+# These agents do NOT exist until the service is first used, so granting IAM to
+# them blindly fails with "does not exist". We create them explicitly via the
+# service-identity API, then reference their real emails in the grants below.
+# ---------------------------------------------------------------------------
+resource "google_project_service_identity" "sql" {
+  provider   = google-beta
+  service    = "sqladmin.googleapis.com"
+  depends_on = [time_sleep.wait_for_apis]
 }
 
-locals {
-  pn = data.google_project.this.number
-  # service agent => crypto key it must use
-  cmek_grants = {
-    "service-${local.pn}@gcp-sa-cloud-sql.iam.gserviceaccount.com"            = "sql"
-    "service-${local.pn}@gs-project-accounts.iam.gserviceaccount.com"         = "storage"
-    "service-${local.pn}@gcp-sa-artifactregistry.iam.gserviceaccount.com"     = "artifacts"
-    "service-${local.pn}@gcp-sa-secretmanager.iam.gserviceaccount.com"        = "secrets"
-  }
+resource "google_project_service_identity" "secretmanager" {
+  provider   = google-beta
+  service    = "secretmanager.googleapis.com"
+  depends_on = [time_sleep.wait_for_apis]
 }
 
-resource "google_kms_crypto_key_iam_member" "agents" {
-  for_each      = local.cmek_grants
-  crypto_key_id = google_kms_crypto_key.key[each.value].id
+resource "google_project_service_identity" "artifactregistry" {
+  provider   = google-beta
+  service    = "artifactregistry.googleapis.com"
+  depends_on = [time_sleep.wait_for_apis]
+}
+
+# GCS service agent: this data source provisions + returns the agent email.
+data "google_storage_project_service_account" "gcs" {
+  depends_on = [time_sleep.wait_for_apis]
+}
+
+# ---------------------------------------------------------------------------
+# Grant each agent encrypt/decrypt on its dedicated key.
+# ---------------------------------------------------------------------------
+resource "google_kms_crypto_key_iam_member" "sql" {
+  crypto_key_id = google_kms_crypto_key.key["sql"].id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = "serviceAccount:${each.key}"
+  member        = "serviceAccount:${google_project_service_identity.sql.email}"
+}
+
+resource "google_kms_crypto_key_iam_member" "secrets" {
+  crypto_key_id = google_kms_crypto_key.key["secrets"].id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = "serviceAccount:${google_project_service_identity.secretmanager.email}"
+}
+
+resource "google_kms_crypto_key_iam_member" "artifacts" {
+  crypto_key_id = google_kms_crypto_key.key["artifacts"].id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = "serviceAccount:${google_project_service_identity.artifactregistry.email}"
+}
+
+resource "google_kms_crypto_key_iam_member" "storage" {
+  crypto_key_id = google_kms_crypto_key.key["storage"].id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = "serviceAccount:${data.google_storage_project_service_account.gcs.email_address}"
 }

@@ -27,7 +27,7 @@ resource "google_secret_manager_secret" "secrets" {
     }
   }
 
-  depends_on = [google_kms_crypto_key_iam_member.agents]
+  depends_on = [google_kms_crypto_key_iam_member.secrets]
 }
 
 # Grant each runtime SA accessor ONLY on the secrets it needs.

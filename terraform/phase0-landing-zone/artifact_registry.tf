@@ -11,7 +11,7 @@ resource "google_artifact_registry_repository" "docker" {
     immutable_tags = true # prevents tag overwrite — :sha tags are immutable
   }
 
-  depends_on = [google_kms_crypto_key_iam_member.agents]
+  depends_on = [google_kms_crypto_key_iam_member.artifacts]
 }
 
 # Deployer pushes; all runtime SAs pull.

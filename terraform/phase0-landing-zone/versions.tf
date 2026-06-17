@@ -10,6 +10,10 @@ terraform {
       source  = "hashicorp/google-beta"
       version = "~> 5.40"
     }
+    time = {
+      source  = "hashicorp/time"
+      version = "~> 0.11"
+    }
   }
 
   # Remote state in GCS. Bucket is created by bootstrap.sh BEFORE `terraform init`.

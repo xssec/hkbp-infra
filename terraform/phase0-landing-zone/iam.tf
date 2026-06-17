@@ -24,6 +24,7 @@ resource "google_service_account" "runtime" {
   for_each     = local.runtime_sas
   account_id   = "sa-${each.key}"
   display_name = "Cloud Run runtime: ${each.key}"
+  depends_on   = [time_sleep.wait_for_apis]
 }
 
 resource "google_project_iam_member" "runtime_roles" {
@@ -40,6 +41,7 @@ resource "google_project_iam_member" "runtime_roles" {
 resource "google_service_account" "deployer" {
   account_id   = "sa-deployer"
   display_name = "Cloud Build deployer (CI/CD)"
+  depends_on   = [time_sleep.wait_for_apis]
 }
 
 resource "google_project_iam_member" "deployer_roles" {

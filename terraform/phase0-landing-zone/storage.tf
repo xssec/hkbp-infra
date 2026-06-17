@@ -20,7 +20,7 @@ resource "google_storage_bucket" "media" {
     }
   }
 
-  depends_on = [google_kms_crypto_key_iam_member.agents]
+  depends_on = [google_kms_crypto_key_iam_member.storage]
 }
 
 # php-monolith and svc-content read/write media; others none.
