@@ -1,0 +1,6 @@
+# Copy to terraform.tfvars and edit. Do NOT commit terraform.tfvars.
+project_id       = "hkbp-prod"
+region           = "asia-southeast2"
+name_prefix      = "hkbp"
+subnet_main_cidr = "10.10.0.0/20"
+subnet_run_cidr  = "10.10.16.0/24"
